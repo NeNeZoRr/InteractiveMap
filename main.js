@@ -10,6 +10,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }).addTo(map);
 
     var userMarker;
+    var radiusInMeters = 1609.34;
 
     function addYouAreHereMarker(lat, lng) {
         if (userMarker) {
@@ -17,6 +18,14 @@ document.addEventListener("DOMContentLoaded", function () {
         }
         userMarker = L.marker([lat, lng]).addTo(map);
         userMarker.bindPopup("You Are Here").openPopup();
+
+        
+        var circle = L.circle([lat, lng], {
+            radius: radiusInMeters, 
+            color: 'blue',          
+            fillColor: 'blue',      
+            fillOpacity: 0.2        
+        }).addTo(map);
     }
 
     function displayLocationOnMap(location) {
