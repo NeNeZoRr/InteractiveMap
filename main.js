@@ -1,3 +1,7 @@
+//I am currently having problems getting the API, HTTPS to fetch and pull. 
+//4spaces API issues. 
+
+
 document.addEventListener("DOMContentLoaded", function () {
     var map = L.map("map").setView([0, 0], 13);
 
@@ -155,6 +159,12 @@ document.addEventListener("DOMContentLoaded", function () {
     updateLocations("Coffee");
     addLocationMarkersToMap();
 });
+
+// APIKEY for UserLocation: fsq3NUNZQpfFDYQ3y9OC4GnGx9aW6j1sujKQFGN2B1m99kY=
+// SecondAPIKey : fsq3cbwljwm8v5uArg1zxKLExjv/UH1z40joNlNa5SDVTjo=
+// Extra API Key: fsq3sj2tvfSXwELQX2xOhyFNm9SpTHUmqH5jvwUWFnjnuWc=
+// Client Id: EMKZEXFAZ1JPDGOMSMV4UL1CVPFVUM2AJNVLPRBPFDYYZ3MA
+// Client Secret: I4F45DJ1DJWIE4FUPLV3ZDTP4ON1FFN4TTFXXRQ3JY0RGYAQ
 
 // APIKEY for UserLocation: fsq3NUNZQpfFDYQ3y9OC4GnGx9aW6j1sujKQFGN2B1m99kY=
 // SecondAPIKey : fsq3cbwljwm8v5uArg1zxKLExjv/UH1z40joNlNa5SDVTjo=
