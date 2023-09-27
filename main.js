@@ -27,6 +27,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     var searchButton = document.getElementById("search");
     var businessSelect = document.getElementById("business");
+    var locationTypeSelect = document.getElementById("location-type");
 
     searchButton.addEventListener("click", function (e) {
         e.preventDefault();
@@ -38,10 +39,6 @@ document.addEventListener("DOMContentLoaded", function () {
         var selectedBusiness = businessSelect.value;
         getUserLocationAndDisplayPlaces(selectedBusiness);
     });
-
-    // Define Foursquare API credentials here
-    const clientId = 'EMKZEXFAZ1JPDGOMSMV4UL1CVPFVUM2AJNVLPRBPFDYYZ3MA'; // Replace with your Foursquare client ID
-    const clientSecret = 'I4F45DJ1DJWIE4FUPLV3ZDTP4ON1FFN4TTFXXRQ3JY0RGYAQ'; // Replace with your Foursquare client secret
 
     function getUserLocationAndDisplayPlaces(business) {
         if ("geolocation" in navigator) {
@@ -58,39 +55,26 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     function fetchAndDisplayLocations(userLat, userLng, business) {
-        const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
-        const apiUrl = 'https://api.foursquare.com/v2/venues/explore';
-
-        const params = new URLSearchParams({
-            ll: userLat + ',' + userLng,
-            query: business,
-            limit: 5,
-            client_id: clientId,
-            client_secret: clientSecret,
-            v: '20230927' // Foursquare API version
-        });
-
         const options = {
             method: 'GET',
             headers: {
-                accept: 'application/json'
+                accept: 'application/json',
+                Authorization: 'fsq3cbwljwm8v5uArg1zxKLExjv/UH1z40joNlNa5SDVTjo='
             }
         };
 
-        fetch(proxyUrl + apiUrl + '?' + params.toString(), options)
+        fetch('https://api.foursquare.com/v2/venues/explore?ll=' + userLat + ',' + userLng + '&query=' + business + '&limit=5', options)
             .then(response => response.json())
             .then(response => {
-                var places = response.response.groups[0].items; // Extract places from the response.
+                var places = response.response.groups[0].items;
                 console.log(places);
 
-                // Clear existing markers.
                 map.eachLayer(function (layer) {
                     if (layer instanceof L.Marker) {
                         map.removeLayer(layer);
                     }
                 });
 
-                // Add places to the map as markers.
                 places.forEach(function (place) {
                     var lat = place.venue.location.lat;
                     var lng = place.venue.location.lng;
@@ -103,32 +87,24 @@ document.addEventListener("DOMContentLoaded", function () {
             .catch(err => console.error(err));
     }
 
-});
+    getUserLocationAndDisplayPlaces("all");
 
-    // Autocomplete Suggestions
     const autocompleteOptions = {
         method: 'GET',
         headers: {
-            accept: 'application/json'
+            accept: 'application/json',
+            Authorization: 'fsq3cbwljwm8v5uArg1zxKLExjv/UH1z40joNlNa5SDVTjo='
         }
     };
 
-    const autocompleteUrl = 'https://cors-anywhere.herokuapp.com/https://api.foursquare.com/v2/venues/suggestcompletion';
-    const autocompleteParams = new URLSearchParams({
-        ll: '40.748817,-73.985428', // New York City coordinates (you can adjust this)
-        v: '20230927', // Foursquare API version
-        query: 'coffee,coffee shops,hotel,hotels,markets,markets,restaurants,restaurant',
-        client_id: clientId,
-        client_secret: clientSecret
-    });
+    const autocompleteUrl = 'https://api.foursquare.com/v3/autocomplete?query=coffee,coffee shops,hotel,hotels,markets,markets,restaurants,restaurant';
 
-    fetch(proxyUrl + autocompleteUrl + '?' + autocompleteParams.toString(), autocompleteOptions)
+    fetch(autocompleteUrl, autocompleteOptions)
         .then(response => response.json())
         .then(response => {
-            // Handle autocomplete suggestions response here.
+
             console.log(response);
 
-            // Bind the autocomplete suggestions to the dropdown menu.
             var businessSelect = document.getElementById("business");
             response.response.minivenues.forEach(function (venue) {
                 var option = document.createElement("option");
@@ -138,10 +114,47 @@ document.addEventListener("DOMContentLoaded", function () {
             });
         })
         .catch(err => console.error(err));
-    displayLocationOnMap()
-    // Initialize with the default business (All) when the page loads.
-    getUserLocationAndDisplayPlaces("all");
 
+    businessSelect.addEventListener("change", function () {
+        var selectedLocation = businessSelect.value;
+
+        var location = locations.find(loc => loc.name === selectedLocation);
+        if (location) {
+            displayLocationOnMap(location);
+        }
+    });
+
+    function addLocationMarkersToMap() {
+
+        map.eachLayer(function (layer) {
+            if (layer instanceof L.Marker) {
+                map.removeLayer(layer);
+            }
+        });
+
+        locations.forEach(function (location) {
+            var lat = location.lat;
+            var lng = location.lng;
+            var name = location.name;
+
+            var marker = L.marker([lat, lng]).addTo(map);
+            marker.bindPopup(name);
+        });
+    }
+
+    locationTypeSelect.addEventListener("change", function () {
+        var selectedLocationType = locationTypeSelect.value;
+
+
+        updateLocations(selectedLocationType);
+
+
+        addLocationMarkersToMap();
+    });
+
+    updateLocations("Coffee");
+    addLocationMarkersToMap();
+});
 
 // APIKEY for UserLocation: fsq3NUNZQpfFDYQ3y9OC4GnGx9aW6j1sujKQFGN2B1m99kY=
 // SecondAPIKey : fsq3cbwljwm8v5uArg1zxKLExjv/UH1z40joNlNa5SDVTjo=
