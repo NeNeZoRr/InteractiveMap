@@ -1,202 +1,146 @@
 document.addEventListener("DOMContentLoaded", function () {
-    var map = L.map("map");
+    var map = L.map("map").setView([0, 0], 13);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map);
 
-    // Define the generateRandomSessionToken function
-    function generateRandomSessionToken(length = 32) {
-        let result = '';
-        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-        for (let i = 0; i < length; i++) {
-            result += characters[Math.floor(Math.random() * characters.length)];
+    var userMarker;
+
+    function addYouAreHereMarker(lat, lng) {
+        if (userMarker) {
+            map.removeLayer(userMarker);
         }
-        return result;
+        userMarker = L.marker([lat, lng]).addTo(map);
+        userMarker.bindPopup("You Are Here").openPopup();
     }
 
-    function getUserLocationAndDisplayBusinesses(map) {
+    function displayLocationOnMap(location) {
+        var lat = location.lat;
+        var lng = location.lng;
+        var name = location.name;
+
+        var marker = L.marker([lat, lng]).addTo(map);
+        marker.bindPopup(name);
+        map.setView([lat, lng], 13);
+    }
+
+    var searchButton = document.getElementById("search");
+    var businessSelect = document.getElementById("business");
+
+    searchButton.addEventListener("click", function (e) {
+        e.preventDefault();
+        var selectedBusiness = businessSelect.value;
+        getUserLocationAndDisplayPlaces(selectedBusiness);
+    });
+
+    businessSelect.addEventListener("change", function () {
+        var selectedBusiness = businessSelect.value;
+        getUserLocationAndDisplayPlaces(selectedBusiness);
+    });
+
+    // Define Foursquare API credentials here
+    const clientId = 'EMKZEXFAZ1JPDGOMSMV4UL1CVPFVUM2AJNVLPRBPFDYYZ3MA'; // Replace with your Foursquare client ID
+    const clientSecret = 'I4F45DJ1DJWIE4FUPLV3ZDTP4ON1FFN4TTFXXRQ3JY0RGYAQ'; // Replace with your Foursquare client secret
+
+    function getUserLocationAndDisplayPlaces(business) {
         if ("geolocation" in navigator) {
             navigator.geolocation.getCurrentPosition(function (position) {
                 var userLat = position.coords.latitude;
                 var userLng = position.coords.longitude;
 
                 map.setView([userLat, userLng], 13);
-                displayNearbyBusinesses(userLat, userLng);
+                addYouAreHereMarker(userLat, userLng);
+
+                fetchAndDisplayLocations(userLat, userLng, business);
             });
         }
     }
 
-    async function displayNearbyBusinesses(userLat, userLng) {
-        let sessionToken = generateRandomSessionToken();
+    function fetchAndDisplayLocations(userLat, userLng, business) {
+        const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
+        const apiUrl = 'https://api.foursquare.com/v2/venues/explore';
 
-        const inputField = document.getElementById("business");
-        const ulField = document.querySelector(".explorer--dropdown-list");
-        const notFoundField = document.querySelector(".explorer--not-found");
-        const errorField = document.querySelector(".explorer--error");
-        const dropDownField = document.querySelector(".explorer--dropdown");
-
-        inputField.addEventListener("input", debounce(changeAutoComplete, 300));
-        ulField.addEventListener("click", selectItem);
-
-        const accessToken = 'fsq3cbwljwm8v5uArg1zxKLExjv/UH1z40joNlNa5SDVTjo=';
-
-        async function changeAutoComplete({ target }) {
-            const { value: inputSearch = '' } = target;
-            ulField.innerHTML = '';
-            notFoundField.style.display = 'none';
-            errorField.style.display = 'none';
-            if (inputSearch.length && !isFetching) {
-                try {
-                    isFetching = true;
-                    const results = await autoComplete(inputSearch);
-                    if (results && results.length) {
-                        results.forEach((value) => {
-                            addItem(value);
-                        });
-                    } else {
-                        notFoundField.innerHTML = `Foursquare can't find ${inputSearch}. Make sure your search is spelled correctly.  
-                            <a href="https://foursquare.com/add-place?ll=${userLat}%2C${userLng}&venuename=${inputSearch}"
-                            target="_blank" rel="noopener noreferrer">Don't see the place you're looking for?</a>.`;
-                        notFoundField.style.display = 'block';
-                    }
-                } catch (err) {
-                    errorField.style.display = 'block';
-                    console.error(err);
-                } finally {
-                    isFetching = false;
-                    dropDownField.style.display = 'block';
-                }
-            } else {
-                dropDownField.style.display = 'none';
-            }
-        }
-
-        async function autoComplete(query) {
-            try {
-                const searchParams = new URLSearchParams({
-                    query,
-                    types: 'place',
-                    ll: `${userLat},${userLng}`,
-                    radius: 50000,
-                    session_token: sessionToken,
-                }).toString();
-                const searchResults = await fetch(
-                    `https://api.foursquare.com/v3/autocomplete?${searchParams}`,
-                    {
-                        method: 'get',
-                        headers: new Headers({
-                            Accept: 'application/json',
-                            Authorization: `Bearer ${accessToken}`,
-                        }),
-                    }
-                );
-                const data = await searchResults.json();
-                return data.results;
-            } catch (error) {
-                throw error;
-            }
-        }
-
-        function addItem(value) {
-            const placeDetail = value[value.type];
-            if (!placeDetail || !placeDetail.geocodes || !placeDetail.geocodes.main) return;
-            const { latitude, longitude } = placeDetail.geocodes.main;
-            const fsqId = placeDetail.fsq_id;
-            const dataObject = JSON.stringify({ latitude, longitude, fsqId });
-            ulField.innerHTML +=
-                `<li class="explorer--dropdown-item" data-object='${dataObject}'>
-                <div>${highlightedNameElement(value.text)}</div>
-                <div class="explorer--secondary-text">${value.text.secondary}</div>
-            </li>`;
-        }
-
-        async function selectItem({ target }) {
-            if (target.tagName === 'LI') {
-                const valueObject = JSON.parse(target.dataset.object);
-                const { latitude, longitude, fsqId } = valueObject;
-                const placeDetail = await fetchPlacesDetails(fsqId);
-
-                sessionToken = generateRandomSessionToken();
-                const name = target.dataset.name;
-                inputField.value = target.children[0].textContent;
-                dropDownField.style.display = 'none';
-            }
-        }
-
-        async function fetchPlacesDetails(fsqId) {
-            try {
-                const searchParams = new URLSearchParams({
-                    fields: 'fsq_id,name,geocodes,location',
-                    session_token: sessionToken,
-                }).toString();
-                const results = await fetch(
-                    `https://api.foursquare.com/v3/places/${fsqId}?${searchParams}`,
-                    {
-                        method: 'get',
-                        headers: new Headers({
-                            Accept: 'application/json',
-                            Authorization: `Bearer ${accessToken}`,
-                        }),
-                    }
-                );
-                const data = await results.json();
-                return data;
-            } catch (err) {
-                console.error(err);
-            }
-        }
-
-        function highlightedNameElement(textObject) {
-            if (!textObject) return '';
-            const { primary, highlight } = textObject;
-            if (highlight && highlight.length) {
-                let beginning = 0;
-                let hightligtedWords = '';
-                for (let i = 0; i < highlight.length; i++) {
-                    const { start, length } = highlight[i];
-                    hightligtedWords += primary.substr(beginning, start - beginning);
-                    hightligtedWords += '<b>' + primary.substr(start, length) + '</b>';
-                    beginning = start + length;
-                }
-                hightligtedWords += primary.substr(beginning);
-                return hightligtedWords;
-            }
-            return primary;
-        }
-
-        function debounce(func, timeout = 300) {
-            let timer;
-            return (...args) => {
-                clearTimeout(timer);
-                timer = setTimeout(() => {
-                    func.apply(this, args);
-                }, timeout);
-            };
-        }
-
-        const data = null;
-
-        const xhr = new XMLHttpRequest();
-        xhr.withCredentials = true;
-
-        xhr.addEventListener('readystatechange', function () {
-            if (this.readyState === this.DONE) {
-                console.log(this.responseText);
-            }
+        const params = new URLSearchParams({
+            ll: userLat + ',' + userLng,
+            query: business,
+            limit: 5,
+            client_id: clientId,
+            client_secret: clientSecret,
+            v: '20230927' // Foursquare API version
         });
 
-        xhr.open('GET', 'https://api.foursquare.com/v3/places/search?query=Coffee%2C%20Hotels%2C%20Restaurants%2C%20Markets&ll=' + userLat + '%2C' + userLng + '&limit=5');
-        xhr.setRequestHeader('accept', 'application/json');
-        xhr.setRequestHeader('Authorization', 'fsq3cbwljwm8v5uArg1zxKLExjv/UH1z40joNlNa5SDVTjo=');
+        const options = {
+            method: 'GET',
+            headers: {
+                accept: 'application/json'
+            }
+        };
 
-        xhr.send(data);
+        fetch(proxyUrl + apiUrl + '?' + params.toString(), options)
+            .then(response => response.json())
+            .then(response => {
+                var places = response.response.groups[0].items; // Extract places from the response.
+                console.log(places);
 
-        getUserLocationAndDisplayBusinesses(map);
+                // Clear existing markers.
+                map.eachLayer(function (layer) {
+                    if (layer instanceof L.Marker) {
+                        map.removeLayer(layer);
+                    }
+                });
+
+                // Add places to the map as markers.
+                places.forEach(function (place) {
+                    var lat = place.venue.location.lat;
+                    var lng = place.venue.location.lng;
+                    var name = place.venue.name;
+
+                    var marker = L.marker([lat, lng]).addTo(map);
+                    marker.bindPopup(name);
+                });
+            })
+            .catch(err => console.error(err));
     }
+
 });
 
-// Replace 'YOUR_FOURSQUARE_ACCESS_TOKEN' with your actual Foursquare access token
+    // Autocomplete Suggestions
+    const autocompleteOptions = {
+        method: 'GET',
+        headers: {
+            accept: 'application/json'
+        }
+    };
+
+    const autocompleteUrl = 'https://cors-anywhere.herokuapp.com/https://api.foursquare.com/v2/venues/suggestcompletion';
+    const autocompleteParams = new URLSearchParams({
+        ll: '40.748817,-73.985428', // New York City coordinates (you can adjust this)
+        v: '20230927', // Foursquare API version
+        query: 'coffee,coffee shops,hotel,hotels,markets,markets,restaurants,restaurant',
+        client_id: clientId,
+        client_secret: clientSecret
+    });
+
+    fetch(proxyUrl + autocompleteUrl + '?' + autocompleteParams.toString(), autocompleteOptions)
+        .then(response => response.json())
+        .then(response => {
+            // Handle autocomplete suggestions response here.
+            console.log(response);
+
+            // Bind the autocomplete suggestions to the dropdown menu.
+            var businessSelect = document.getElementById("business");
+            response.response.minivenues.forEach(function (venue) {
+                var option = document.createElement("option");
+                option.value = venue.name;
+                option.text = venue.name;
+                businessSelect.appendChild(option);
+            });
+        })
+        .catch(err => console.error(err));
+    displayLocationOnMap()
+    // Initialize with the default business (All) when the page loads.
+    getUserLocationAndDisplayPlaces("all");
 
 
 // APIKEY for UserLocation: fsq3NUNZQpfFDYQ3y9OC4GnGx9aW6j1sujKQFGN2B1m99kY=
@@ -204,4 +148,4 @@ document.addEventListener("DOMContentLoaded", function () {
 // Extra API Key: fsq3sj2tvfSXwELQX2xOhyFNm9SpTHUmqH5jvwUWFnjnuWc=
 // Client Id: EMKZEXFAZ1JPDGOMSMV4UL1CVPFVUM2AJNVLPRBPFDYYZ3MA
 // Client Secret: I4F45DJ1DJWIE4FUPLV3ZDTP4ON1FFN4TTFXXRQ3JY0RGYAQ
-// Replace 'YOUR ACCESS TOKEN' with your actual access token
+

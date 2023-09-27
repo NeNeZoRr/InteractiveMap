@@ -11,6 +11,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
     crossorigin=""></script>
+    <script src="location.js"></script>
     <title>Interactive Map</title>
 </head>
 <body>
@@ -20,12 +21,13 @@
     <form>
         <label for="business">Select a Business Type:</label>
         <select id="business">
-            <option value="restaurant">Restaurants</option>
+            <option value="all">All</option>
             <option value="coffee">Coffee Shops</option>
+            <option value="restaurant">Restaurants</option>
             <option value="hotel">Hotels</option>
             <option value="market">Markets</option>
         </select>
-        <button id="submit">Submit</button>
+        <button id="search">Search</button>
     </form>
 
     <div id="map" style="height: 600px;"></div>
