@@ -10,8 +10,9 @@
   "dependencies": {
     "api": "^6.1.1",
     "axios": "^1.5.1",
-    "express": "^4.18.2"
+    "express": "^4.18.2",
+    "lifecycle": "^1.0.4",
+    "scripts": "^0.1.0"
   },
-  "devDependencies": {},
   "description": ""
 }
